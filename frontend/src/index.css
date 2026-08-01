@@ -1,114 +1,573 @@
 @import "tailwindcss";
 
+/* ============================================================
+   PLAYORITHM DESIGN SYSTEM
+   Identity: Digital Experimental Laboratory
+   ============================================================ */
+
 @theme {
   --font-sans: "Outfit", "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "Fira Code", monospace;
+  --font-mono: "Fira Code", "JetBrains Mono", monospace;
 
-  --color-bg-dark: #0a0a0c;
-  --color-card-dark: #121216;
-  --color-border-dark: #1f1f27;
-  
-  --color-primary-glow: rgba(139, 92, 246, 0.15);
-  --color-accent-glow: rgba(236, 72, 153, 0.15);
-  
-  --animate-shimmer: shimmer 2.5s infinite linear;
-  --animate-glow: pulse-glow 3s infinite ease-in-out;
-  --animate-float: float-animation 6s infinite ease-in-out;
+  /* Motion Tokens */
+  --duration-instant:    120ms;
+  --duration-fast:       200ms;
+  --duration-standard:   320ms;
+  --duration-expressive: 550ms;
+  --duration-cinematic:  800ms;
 
-  @keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
+  --ease-out:        cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring:     cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
-  @keyframes pulse-glow {
-    0%, 100% { opacity: 0.5; filter: drop-shadow(0 0 10px rgba(139, 92, 246, 0.3)); }
-    50% { opacity: 1; filter: drop-shadow(0 0 25px rgba(139, 92, 246, 0.6)); }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
-  @keyframes float-animation {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+  @keyframes slide-right {
+    from { transform: translateX(-100%); }
+    to   { transform: translateX(0); }
+  }
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+  @keyframes signal-pulse {
+    0%, 100% { opacity: 0.6; }
+    50%       { opacity: 1; }
+  }
+  @keyframes grain {
+    0%, 100% { transform: translate(0, 0); }
+    10%       { transform: translate(-2%, -3%); }
+    20%       { transform: translate(3%, 2%); }
+    30%       { transform: translate(-1%, 4%); }
+    40%       { transform: translate(4%, -1%); }
+    50%       { transform: translate(-3%, 3%); }
+    60%       { transform: translate(2%, -4%); }
+    70%       { transform: translate(-4%, 1%); }
+    80%       { transform: translate(1%, -2%); }
+    90%       { transform: translate(3%, 3%); }
+  }
+  @keyframes count-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes scan-line {
+    from { transform: translateY(-100%); }
+    to   { transform: translateY(100vh); }
   }
 }
 
-/* Premium Reset & Root */
-:root {
-  background-color: var(--color-bg-dark);
-  color: #f4f4f5;
+/* ============================================================
+   DARK MODE (Default — Experimental Control Room)
+   ============================================================ */
+:root, html {
+  /* Backgrounds — Obsidian Surfaces */
+  --bg-obsidian:       #08090C;
+  --bg-carbon:         #0E1015;
+  --bg-elevated:       #151820;
+  --bg-surface:        #1C2030;
+  --bg-hover:          #222840;
+
+  /* Borders */
+  --border-subtle:     rgba(255, 255, 255, 0.05);
+  --border-default:    rgba(255, 255, 255, 0.09);
+  --border-strong:     rgba(255, 255, 255, 0.15);
+  --border-signal:     rgba(199, 255, 61, 0.22);
+
+  /* Typography */
+  --text-primary:      #F4F2ED;
+  --text-secondary:    #9DA3AE;
+  --text-tertiary:     #5A6170;
+  --text-inverse:      #08090C;
+
+  /* Signal / Accent */
+  --signal:            #C7FF3D;
+  --signal-dim:        rgba(199, 255, 61, 0.10);
+  --signal-mid:        rgba(199, 255, 61, 0.20);
+  --signal-text:       #C7FF3D;
+
+  /* Category Colors — controlled accents */
+  --cat-ai:            #8B5CF6;
+  --cat-ai-dim:        rgba(139, 92, 246, 0.12);
+  --cat-ml:            #06B6D4;
+  --cat-ml-dim:        rgba(6, 182, 212, 0.12);
+  --cat-probability:   #C7FF3D;
+  --cat-probability-dim: rgba(199, 255, 61, 0.10);
+  --cat-fun:           #FB923C;
+  --cat-fun-dim:       rgba(251, 146, 60, 0.12);
+  --cat-game:          #3B82F6;
+  --cat-game-dim:      rgba(59, 130, 246, 0.12);
+  --cat-utility:       #64748B;
+  --cat-utility-dim:   rgba(100, 116, 139, 0.12);
+  --cat-analytics:     #EC4899;
+  --cat-analytics-dim: rgba(236, 72, 153, 0.12);
+
+  /* Semantic Aliases (used throughout) */
+  --color-bg-dark:       var(--bg-carbon);
+  --color-bg-navy-deep:  var(--bg-elevated);
+  --color-bg-navy-alt:   var(--bg-surface);
+  --color-surface-dark:  var(--bg-elevated);
+  --color-surface-card:  var(--bg-surface);
+  --color-border-dark:   var(--border-default);
+  --color-border-glow:   var(--border-signal);
+  --color-text-main:     var(--text-primary);
+  --color-text-muted:    var(--text-secondary);
+
+  /* Legacy Purple (kept for AI category only) */
+  --color-purple-primary:    #8B5CF6;
+  --color-indigo-secondary:  #6366F1;
+  --color-blue-electric:     #3B82F6;
+  --color-cyan-bright:       #06B6D4;
+  --color-pink-accent:       #EC4899;
+  --color-gold-warm:         #F59E0B;
+
+  background-color: var(--bg-carbon);
+  color: var(--text-primary);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ============================================================
+   LIGHT MODE — Editorial Research Notebook
+   ============================================================ */
+html:not(.dark) {
+  --bg-obsidian:       #FAF9F6;
+  --bg-carbon:         #F3F1EB;
+  --bg-elevated:       #EDE9E0;
+  --bg-surface:        #E5E1D8;
+  --bg-hover:          #DAD6CC;
+
+  --border-subtle:     rgba(0, 0, 0, 0.05);
+  --border-default:    rgba(0, 0, 0, 0.09);
+  --border-strong:     rgba(0, 0, 0, 0.15);
+  --border-signal:     rgba(90, 120, 0, 0.25);
+
+  --text-primary:      #101114;
+  --text-secondary:    #686B72;
+  --text-tertiary:     #9DA3AE;
+  --text-inverse:      #F4F2ED;
+
+  --signal:            #6B8E00;
+  --signal-dim:        rgba(107, 142, 0, 0.08);
+  --signal-mid:        rgba(107, 142, 0, 0.15);
+  --signal-text:       #5A7A00;
+
+  --cat-ai:            #7C3AED;
+  --cat-ai-dim:        rgba(124, 58, 237, 0.08);
+  --cat-ml:            #0284C7;
+  --cat-ml-dim:        rgba(2, 132, 199, 0.08);
+  --cat-probability:   #5A7A00;
+  --cat-probability-dim: rgba(90, 122, 0, 0.08);
+  --cat-fun:           #C2410C;
+  --cat-fun-dim:       rgba(194, 65, 12, 0.08);
+  --cat-game:          #1D4ED8;
+  --cat-game-dim:      rgba(29, 78, 216, 0.08);
+  --cat-utility:       #475569;
+  --cat-utility-dim:   rgba(71, 85, 105, 0.08);
+  --cat-analytics:     #BE185D;
+  --cat-analytics-dim: rgba(190, 24, 93, 0.08);
+
+  /* Semantic Aliases */
+  --color-bg-dark:       var(--bg-carbon);
+  --color-bg-navy-deep:  var(--bg-elevated);
+  --color-bg-navy-alt:   var(--bg-surface);
+  --color-surface-dark:  var(--bg-elevated);
+  --color-surface-card:  var(--bg-surface);
+  --color-border-dark:   var(--border-default);
+  --color-border-glow:   var(--border-signal);
+  --color-text-main:     var(--text-primary);
+  --color-text-muted:    var(--text-secondary);
+
+  --color-purple-primary:   #7C3AED;
+  --color-indigo-secondary: #4F46E5;
+  --color-blue-electric:    #2563EB;
+  --color-cyan-bright:      #0891B2;
+  --color-pink-accent:      #DB2777;
+  --color-gold-warm:        #D97706;
+
+  background-color: var(--bg-carbon);
+  color: var(--text-primary);
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
 body {
   margin: 0;
   min-height: 100vh;
   overflow-x: hidden;
+  background-color: var(--bg-carbon);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Custom Scrollbar for Sleek Visuals */
+/* ============================================================
+   SCROLLBAR
+   ============================================================ */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--color-bg-dark);
+  background: var(--bg-obsidian);
 }
 ::-webkit-scrollbar-thumb {
-  background: #272730;
-  border-radius: 9999px;
-  border: 2px solid var(--color-bg-dark);
+  background: var(--border-strong);
+  border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f4e;
+  background: var(--text-tertiary);
 }
 
-/* Glassmorphism utility classes */
+/* ============================================================
+   TYPOGRAPHY UTILITIES
+   ============================================================ */
+.display-xl {
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+.display-lg {
+  font-size: clamp(2rem, 5vw, 4.5rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+}
+.display-md {
+  font-size: clamp(1.5rem, 3vw, 2.5rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.mono-label {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.section-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+.signal-text {
+  color: var(--signal-text);
+}
+
+/* ============================================================
+   BACKGROUND PATTERNS
+   ============================================================ */
+.grid-pattern {
+  background-image:
+    linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+.dot-pattern {
+  background-image: radial-gradient(circle, var(--border-default) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* ============================================================
+   EXPERIMENT CARDS
+   ============================================================ */
+.experiment-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+.experiment-card:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-surface);
+}
+.experiment-card-active:hover {
+  border-color: var(--border-signal);
+}
+
+/* ============================================================
+   GLASS PANEL (legacy compat — keep for existing pages)
+   ============================================================ */
 .glass-panel {
-  background: rgba(18, 18, 22, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
 }
-
 .glass-panel-hover {
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all var(--duration-standard) var(--ease-out);
 }
 .glass-panel-hover:hover {
-  background: rgba(22, 22, 28, 0.85);
-  border-color: rgba(139, 92, 246, 0.3);
-  box-shadow: 0 12px 40px -10px rgba(139, 92, 246, 0.15);
-  transform: translateY(-2px);
+  border-color: var(--border-strong);
 }
-
 .glass-input {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  color: var(--text-primary);
   outline: none;
-  transition: all 0.2s ease;
+  transition: border-color var(--duration-fast) var(--ease-out);
 }
 .glass-input:focus {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(139, 92, 246, 0.5);
-  box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+  border-color: var(--border-strong);
+}
+.glass-input::placeholder {
+  color: var(--text-tertiary);
 }
 
-/* Shimmering Text Effects */
-.text-shimmer {
-  background: linear-gradient(90deg, #a78bfa, #f472b6, #a78bfa);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: shimmer 4s linear infinite;
+/* ============================================================
+   SIGNAL BUTTON
+   ============================================================ */
+.btn-signal {
+  background: var(--signal);
+  color: var(--bg-obsidian);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition:
+    opacity var(--duration-fast) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+.btn-signal:hover {
+  opacity: 0.88;
+}
+.btn-signal:active {
+  transform: scale(0.98);
 }
 
-/* Page/Section background ambient glows */
-.ambient-glow {
+/* ============================================================
+   NAV LINK ACTIVE STATE
+   ============================================================ */
+.nav-link-active {
+  color: var(--signal-text) !important;
+}
+
+/* ============================================================
+   PRELOADER
+   ============================================================ */
+.preloader {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg-obsidian);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: clamp(2rem, 6vw, 5rem);
+  overflow: hidden;
+}
+.preloader-wordmark {
+  font-size: clamp(2.5rem, 10vw, 9rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  color: var(--text-primary);
+}
+.preloader-counter {
+  font-family: var(--font-mono);
+  font-size: clamp(5rem, 20vw, 16rem);
+  font-weight: 900;
+  line-height: 0.85;
+  letter-spacing: -0.04em;
+  color: var(--signal);
   position: absolute;
-  width: 40vw;
-  height: 40vw;
-  border-radius: 50%;
-  filter: blur(150px);
+  right: clamp(2rem, 6vw, 5rem);
+  bottom: clamp(2rem, 6vw, 5rem);
+}
+.preloader-status {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-top: 0.5rem;
+}
+.preloader-status span.ready {
+  color: var(--signal-text);
+}
+
+/* ============================================================
+   ROUTE TRANSITION OVERLAY
+   ============================================================ */
+.route-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 8888;
+  background: var(--bg-obsidian);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(2rem, 6vw, 5rem);
   pointer-events: none;
-  opacity: 0.15;
-  z-index: 0;
+}
+.route-overlay-id {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--signal-text);
+}
+.route-overlay-name {
+  font-size: clamp(2rem, 6vw, 4rem);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--text-primary);
+  margin-top: 0.5rem;
+}
+.route-overlay-sub {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-top: 1rem;
+}
+
+/* ============================================================
+   HERO GRADIENT TEXT (legacy compat)
+   ============================================================ */
+.hero-gradient-text {
+  color: var(--signal-text);
+}
+
+/* ============================================================
+   TICKER STRIP
+   ============================================================ */
+.ticker-track {
+  animation: ticker 28s linear infinite;
+  will-change: transform;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* ============================================================
+   SCROLL REVEALS
+   ============================================================ */
+.reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition:
+    opacity var(--duration-expressive) var(--ease-spring),
+    transform var(--duration-expressive) var(--ease-spring);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ============================================================
+   CUSTOM CURSOR
+   ============================================================ */
+.cursor-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  background: var(--signal);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(-50%, -50%);
+  transition: opacity var(--duration-fast) var(--ease-out);
+  mix-blend-mode: normal;
+}
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--signal);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(-50%, -50%);
+  opacity: 0.4;
+  transition:
+    width var(--duration-fast) var(--ease-out),
+    height var(--duration-fast) var(--ease-out),
+    opacity var(--duration-fast) var(--ease-out),
+    border-radius var(--duration-fast) var(--ease-out);
+}
+.cursor-ring.expanded {
+  width: 72px;
+  height: 72px;
+  opacity: 0.25;
+}
+.cursor-label {
+  position: fixed;
+  top: 0;
+  left: 0;
+  font-family: var(--font-mono);
+  font-size: 0.5625rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--signal-text);
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(8px, 8px);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-out);
+}
+.cursor-label.visible {
+  opacity: 1;
+}
+
+/* ============================================================
+   CATEGORY DOT INDICATOR
+   ============================================================ */
+.cat-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   LAB INDEX ROW
+   ============================================================ */
+.lab-index-row {
+  border-bottom: 1px solid var(--border-subtle);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    padding-left var(--duration-fast) var(--ease-out);
+}
+.lab-index-row:hover {
+  background-color: var(--bg-elevated);
+  padding-left: 1.25rem;
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .ticker-track {
+    animation: none !important;
+  }
+  .cursor-dot,
+  .cursor-ring,
+  .cursor-label {
+    display: none !important;
+  }
 }

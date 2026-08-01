@@ -1,208 +1,724 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '@/store/useAppStore';
-import { motion } from 'framer-motion';
-import { Sparkles, Terminal, Shield } from 'lucide-react';
+import { authApi } from '@/api/authApi';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AlertCircle, Shield, ArrowRight } from 'lucide-react';
 
 export const AuthPage: React.FC = () => {
-  const loginAsGuest = useAppStore((state) => state.loginAsGuest);
+  const {
+    user,
+    loginAsGuest,
+    loginWithCredentials,
+    registerWithCredentials,
+    promoteGuestAccount,
+    authError,
+    clearAuthError,
+  } = useAppStore();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  const initialMode = searchParams.get('mode');
+  const [mode, setMode] = useState<'guest' | 'login' | 'signup'>(
+    initialMode === 'login' ? 'login' : initialMode === 'signup' ? 'signup' : 'guest'
+  );
+
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [mode, setMode] = useState<'guest' | 'login' | 'signup'>('guest');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [successState, setSuccessState] = useState<string | null>(null);
 
-  const handleGuestLogin = (e: React.FormEvent) => {
+  const errorParam = searchParams.get('error');
+  const oauthMsg = errorParam === 'invalid_state'
+    ? 'OAuth state verification failed. Please try again.'
+    : errorParam === 'github_token_failed'
+    ? 'Failed to authenticate with GitHub.'
+    : errorParam
+    ? 'GitHub authentication encountered an issue.'
+    : null;
+
+  const handleGuestSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
+    clearAuthError();
     setIsLoading(true);
-    setTimeout(() => {
-      loginAsGuest(username.trim() || undefined);
+    try {
+      await loginAsGuest(username.trim() || undefined);
+      setSuccessState('GUEST SESSION INITIALIZED');
+      setTimeout(() => navigate('/'), 700);
+    } catch {
       setIsLoading(false);
-      navigate('/');
-    }, 800);
+    }
   };
 
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
+    clearAuthError();
+
+    if (mode === 'signup') {
+      if (!username || username.trim().length < 3) {
+        setValidationError('Username must be at least 3 characters.');
+        return;
+      }
+      if (password.length < 6) {
+        setValidationError('Password must be at least 6 characters.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setValidationError('Passwords do not match.');
+        return;
+      }
+    }
+
     setIsLoading(true);
-    // Mock standard authentication
-    setTimeout(() => {
-      const mockProfile = {
-        username: email.split('@')[0],
-        email,
-        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${email}`,
-        xp: 0,
-        level: 1,
-        streak: 1,
-        lastActive: new Date().toISOString(),
-        isGuest: false,
-        achievements: [],
-        bookmarks: [],
-        history: [],
-      };
-      useAppStore.getState().loginWithToken('mock-jwt-token', mockProfile);
+    try {
+      if (mode === 'login') {
+        await loginWithCredentials(email, password);
+      } else {
+        if (user && user.isGuest) {
+          await promoteGuestAccount(username.trim(), email.trim(), password);
+        } else {
+          await registerWithCredentials(username.trim(), email.trim(), password);
+        }
+      }
+      const displayName = username || email.split('@')[0];
+      setSuccessState(`IDENTITY VERIFIED / Welcome, ${displayName}`);
+      setTimeout(() => navigate('/'), 900);
+    } catch {
       setIsLoading(false);
-      navigate('/');
-    }, 1200);
+    }
   };
+
+  const handleGitHubClick = () => {
+    setIsLoading(true);
+    window.location.href = authApi.getGithubOAuthUrl();
+  };
+
+  const TABS = [
+    { key: 'guest' as const, label: 'GUEST' },
+    { key: 'login' as const, label: 'LOG IN' },
+    { key: 'signup' as const, label: 'REGISTER' },
+  ];
+
+  const LEFT_COPY: Record<typeof mode, { headline: string; sub: string }> = {
+    guest: {
+      headline: 'GUEST SESSION',
+      sub: 'No account required. Explore experiments immediately. Progress can be promoted to an account later.',
+    },
+    login: {
+      headline: 'IDENTITY GATE',
+      sub: 'Experiments are better when they remember you. Sign in to restore your progress, XP, and streak.',
+    },
+    signup: {
+      headline: 'CREATE IDENTITY',
+      sub: 'Join the laboratory. Earn XP, unlock achievements, build streaks, and appear on the leaderboard.',
+    },
+  };
+
+  if (successState) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: 'var(--bg-obsidian)' }}
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+          style={{ textAlign: 'center' }}
+        >
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.5625rem',
+              letterSpacing: '0.16em',
+              textTransform: 'uppercase',
+              color: 'var(--signal-text)',
+              marginBottom: '1rem',
+            }}
+          >
+            {successState}
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.5rem',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: 'var(--text-tertiary)',
+            }}
+          >
+            RESTORING EXPERIMENTS...
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-bg-dark flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background ambient glows */}
-      <div className="ambient-glow -top-20 -right-20 bg-violet-600/10"></div>
-      <div className="ambient-glow -bottom-20 -left-20 bg-indigo-600/10"></div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="w-full max-w-md rounded-2xl glass-panel p-8 shadow-2xl relative z-10 border border-zinc-800"
+    <div
+      className="min-h-screen flex"
+      style={{ background: 'var(--bg-obsidian)' }}
+    >
+      {/* ─── Left Panel ─── */}
+      <div
+        className="hidden lg:flex flex-col justify-between p-12 xl:p-16"
+        style={{
+          width: '42%',
+          flexShrink: 0,
+          borderRight: '1px solid var(--border-subtle)',
+          background: 'var(--bg-carbon)',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
       >
-        <div className="text-center mb-8">
-          <div className="inline-flex p-3 bg-violet-600/10 text-violet-400 rounded-2xl border border-violet-500/20 mb-4">
-            <Sparkles size={32} className="animate-pulse" />
+        {/* Grid background */}
+        <div className="absolute inset-0 grid-pattern opacity-40 pointer-events-none" />
+
+        {/* Logo */}
+        <div className="relative z-10 flex items-center gap-2.5">
+          <div
+            style={{
+              width: 20,
+              height: 20,
+              border: '1.5px solid var(--signal)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.4rem',
+                fontWeight: 900,
+                color: 'var(--signal)',
+              }}
+            >
+              PL
+            </span>
           </div>
-          <h1 className="text-3xl font-extrabold text-white tracking-tight">
-            Play<span className="text-violet-400">orithm</span>
-          </h1>
-          <p className="text-zinc-400 text-sm mt-2">
-            Where Developers Play with Intelligence.
-          </p>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.6875rem',
+              fontWeight: 900,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'var(--text-primary)',
+            }}
+          >
+            PLAYORITHM
+          </span>
         </div>
 
-        {/* Tab Controls */}
-        <div className="flex bg-zinc-950 p-1 rounded-xl border border-border-dark mb-6">
-          {(['guest', 'login', 'signup'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setMode(t)}
-              className={`flex-1 py-2 text-xs font-semibold rounded-lg capitalize transition-all ${
-                mode === t
-                  ? 'bg-zinc-800 text-white shadow-md'
-                  : 'text-zinc-400 hover:text-zinc-200'
-              }`}
+        {/* Center copy — changes with mode */}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={mode}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+            className="relative z-10"
+          >
+            <div
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.5rem',
+                letterSpacing: '0.16em',
+                textTransform: 'uppercase',
+                color: 'var(--signal-text)',
+                marginBottom: '1rem',
+              }}
             >
-              {t === 'guest' ? 'Guest Access' : t}
-            </button>
-          ))}
-        </div>
-
-        {mode === 'guest' ? (
-          <form onSubmit={handleGuestLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">
-                Choose a Handle / Username
-              </label>
-              <div className="relative">
-                <Terminal size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
-                <input
-                  type="text"
-                  placeholder="e.g. LambdaCoder (Optional)"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  maxLength={15}
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl glass-input text-zinc-200 text-sm placeholder-zinc-600"
-                />
-              </div>
+              {LEFT_COPY[mode].headline}
             </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 bg-violet-600 hover:bg-violet-500 text-white font-semibold rounded-xl text-sm transition-all shadow-lg shadow-violet-500/25 flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+            <p
+              style={{
+                fontSize: 'clamp(1.5rem, 2.5vw, 2.25rem)',
+                fontWeight: 900,
+                letterSpacing: '-0.03em',
+                lineHeight: 1.1,
+                color: 'var(--text-primary)',
+                marginBottom: '1.5rem',
+              }}
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                'Enter Playground'
-              )}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleAuthSubmit} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Email Address</label>
-              <input
-                type="email"
-                required
-                placeholder="dev@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl glass-input text-zinc-200 text-sm placeholder-zinc-600"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-zinc-400 mb-1.5">Password</label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-xl glass-input text-zinc-200 text-sm placeholder-zinc-600"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full py-3 bg-zinc-100 hover:bg-white text-zinc-950 font-bold rounded-xl text-sm transition-all shadow-md flex items-center justify-center gap-2 hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+              {mode === 'guest' && 'No account required.'}
+              {mode === 'login' && 'Welcome back,\nexperimenter.'}
+              {mode === 'signup' && 'Build your developer identity.'}
+            </p>
+            <p
+              style={{
+                fontSize: '0.8125rem',
+                color: 'var(--text-secondary)',
+                lineHeight: 1.7,
+                maxWidth: 320,
+              }}
             >
-              {isLoading ? (
-                <div className="w-5 h-5 border-2 border-zinc-950 border-t-transparent rounded-full animate-spin"></div>
-              ) : mode === 'login' ? (
-                'Log In'
-              ) : (
-                'Create Account'
-              )}
-            </button>
-          </form>
-        )}
+              {LEFT_COPY[mode].sub}
+            </p>
+          </motion.div>
+        </AnimatePresence>
 
-        {/* Divider */}
-        <div className="my-6 flex items-center justify-center gap-3">
-          <div className="h-px bg-zinc-800 flex-1"></div>
-          <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold">Or Continue With</span>
-          <div className="h-px bg-zinc-800 flex-1"></div>
-        </div>
-
-        {/* OAuth Buttons */}
-        <button
-          onClick={() => {
-            setIsLoading(true);
-            setTimeout(() => {
-              // Mock GitHub login
-              const mockGitHubProfile = {
-                username: 'Octocat',
-                email: 'octocat@github.com',
-                avatar: 'https://avatars.githubusercontent.com/u/5832347?v=4',
-                xp: 150,
-                level: 1,
-                streak: 3,
-                lastActive: new Date().toISOString(),
-                isGuest: false,
-                achievements: ['first-steps'],
-                bookmarks: [],
-                history: [],
-              };
-              useAppStore.getState().loginWithToken('github-oauth-token', mockGitHubProfile);
-              setIsLoading(false);
-              navigate('/');
-            }, 1000);
+        {/* Footer */}
+        <div
+          className="relative z-10"
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: '0.5rem',
+            letterSpacing: '0.1em',
+            color: 'var(--text-tertiary)',
+            textTransform: 'uppercase',
           }}
-          className="w-full py-3 rounded-xl border border-zinc-800 bg-zinc-900/50 hover:bg-zinc-900 text-zinc-300 font-medium text-sm flex items-center justify-center gap-3 transition-all hover:border-zinc-700"
         >
-          <svg className="w-[18px] h-[18px] fill-current" viewBox="0 0 24 24">
-            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.11.82-.26.82-.577v-2.234c-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/>
-          </svg>
-          <span>GitHub Account</span>
-        </button>
+          DIGITAL EXPERIMENTAL LABORATORY · 2026
+        </div>
+      </div>
 
-        <p className="text-center text-[11px] text-zinc-500 mt-6 flex items-center justify-center gap-1">
-          <Shield size={12} /> Secure sandbox workspace. No telemetry logs stored.
-        </p>
-      </motion.div>
+      {/* ─── Right Panel ─── */}
+      <div className="flex flex-1 flex-col items-center justify-center p-6 sm:p-10">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+          style={{ width: '100%', maxWidth: 440 }}
+        >
+          {/* Mobile logo */}
+          <div className="flex lg:hidden items-center gap-2 mb-8">
+            <div
+              style={{
+                width: 18,
+                height: 18,
+                border: '1.5px solid var(--signal)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.35rem', fontWeight: 900, color: 'var(--signal)' }}>PL</span>
+            </div>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', fontWeight: 900, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>PLAYORITHM</span>
+          </div>
+
+          {/* Guest promotion banner */}
+          {user && user.isGuest && (
+            <div
+              style={{
+                padding: '12px 16px',
+                border: '1px solid var(--border-signal)',
+                background: 'var(--signal-dim)',
+                marginBottom: '1.5rem',
+                fontSize: '0.6875rem',
+                color: 'var(--signal-text)',
+                lineHeight: 1.6,
+              }}
+            >
+              Create an account to preserve your guest XP ({user.xp} XP) and achievements.
+            </div>
+          )}
+
+          {/* Tab controls */}
+          <div
+            className="flex mb-8"
+            style={{ borderBottom: '1px solid var(--border-subtle)' }}
+          >
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => {
+                  setMode(tab.key);
+                  setValidationError(null);
+                  clearAuthError();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '10px 4px',
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: `2px solid ${mode === tab.key ? 'var(--signal)' : 'transparent'}`,
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.5625rem',
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  color: mode === tab.key ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                  fontWeight: mode === tab.key ? 700 : 400,
+                  cursor: 'pointer',
+                  transition: 'color 0.15s ease, border-color 0.15s ease',
+                  marginBottom: -1,
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Errors */}
+          {(validationError || authError || oauthMsg) && (
+            <div
+              style={{
+                padding: '12px 16px',
+                border: '1px solid rgba(239,68,68,0.3)',
+                background: 'rgba(239,68,68,0.06)',
+                marginBottom: '1.5rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
+                fontSize: '0.6875rem',
+                color: '#f87171',
+                lineHeight: 1.6,
+              }}
+            >
+              <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>{validationError || authError || oauthMsg}</span>
+            </div>
+          )}
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={mode}
+              initial={{ opacity: 0, x: 8 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -8 }}
+              transition={{ duration: 0.22, ease: [0.4, 0, 0.2, 1] }}
+            >
+              {/* Guest form */}
+              {mode === 'guest' && (
+                <form onSubmit={handleGuestSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.5rem',
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-tertiary)',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      GUEST HANDLE (OPTIONAL)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="LambdaCoder"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      maxLength={20}
+                      className="glass-input"
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        fontSize: '0.875rem',
+                        borderRadius: 0,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    data-cursor="open"
+                    style={{
+                      width: '100%',
+                      padding: '13px',
+                      background: 'var(--signal)',
+                      color: 'var(--bg-obsidian)',
+                      border: 'none',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.6875rem',
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      cursor: isLoading ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      opacity: isLoading ? 0.7 : 1,
+                      transition: 'opacity 0.15s ease',
+                    }}
+                  >
+                    {isLoading ? (
+                      <div
+                        style={{
+                          width: 16,
+                          height: 16,
+                          border: '2px solid var(--bg-obsidian)',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 0.7s linear infinite',
+                        }}
+                      />
+                    ) : (
+                      <>CONTINUE AS GUEST <ArrowRight size={14} /></>
+                    )}
+                  </button>
+                </form>
+              )}
+
+              {/* Login/Signup form */}
+              {(mode === 'login' || mode === 'signup') && (
+                <form onSubmit={handleAuthSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  {mode === 'signup' && (
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.5rem',
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          color: 'var(--text-tertiary)',
+                          marginBottom: '0.5rem',
+                        }}
+                      >
+                        USERNAME
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="sanidhya_dev"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="glass-input"
+                        style={{
+                          width: '100%',
+                          padding: '11px 14px',
+                          fontSize: '0.875rem',
+                          borderRadius: 0,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.5rem',
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-tertiary)',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      EMAIL ADDRESS
+                    </label>
+                    <input
+                      type="email"
+                      required
+                      placeholder="dev@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="glass-input"
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        fontSize: '0.875rem',
+                        borderRadius: 0,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '0.5rem',
+                        letterSpacing: '0.12em',
+                        textTransform: 'uppercase',
+                        color: 'var(--text-tertiary)',
+                        marginBottom: '0.5rem',
+                      }}
+                    >
+                      PASSWORD
+                    </label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="glass-input"
+                      style={{
+                        width: '100%',
+                        padding: '11px 14px',
+                        fontSize: '0.875rem',
+                        borderRadius: 0,
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  {mode === 'signup' && (
+                    <div>
+                      <label
+                        style={{
+                          display: 'block',
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '0.5rem',
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          color: 'var(--text-tertiary)',
+                          marginBottom: '0.5rem',
+                        }}
+                      >
+                        CONFIRM PASSWORD
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="glass-input"
+                        style={{
+                          width: '100%',
+                          padding: '11px 14px',
+                          fontSize: '0.875rem',
+                          borderRadius: 0,
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    data-cursor="open"
+                    style={{
+                      width: '100%',
+                      padding: '13px',
+                      background: 'var(--signal)',
+                      color: 'var(--bg-obsidian)',
+                      border: 'none',
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: '0.6875rem',
+                      letterSpacing: '0.12em',
+                      textTransform: 'uppercase',
+                      fontWeight: 700,
+                      cursor: isLoading ? 'wait' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      opacity: isLoading ? 0.7 : 1,
+                      transition: 'opacity 0.15s ease',
+                    }}
+                  >
+                    {isLoading ? (
+                      <div
+                        style={{
+                          width: 16,
+                          height: 16,
+                          border: '2px solid var(--bg-obsidian)',
+                          borderTopColor: 'transparent',
+                          borderRadius: '50%',
+                          animation: 'spin 0.7s linear infinite',
+                        }}
+                      />
+                    ) : mode === 'login' ? (
+                      <>ENTER PLAYORITHM <ArrowRight size={14} /></>
+                    ) : (
+                      <>CREATE IDENTITY <ArrowRight size={14} /></>
+                    )}
+                  </button>
+                </form>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Divider */}
+          <div
+            className="flex items-center gap-3 my-6"
+          >
+            <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.4375rem',
+                letterSpacing: '0.16em',
+                textTransform: 'uppercase',
+                color: 'var(--text-tertiary)',
+              }}
+            >
+              OR CONTINUE WITH
+            </span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border-subtle)' }} />
+          </div>
+
+          {/* GitHub button */}
+          <button
+            onClick={handleGitHubClick}
+            disabled={isLoading}
+            style={{
+              width: '100%',
+              padding: '13px',
+              background: 'var(--bg-elevated)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--border-default)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.6875rem',
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              fontWeight: 600,
+              cursor: isLoading ? 'wait' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '10px',
+              transition: 'border-color 0.15s ease, background 0.15s ease',
+              opacity: isLoading ? 0.6 : 1,
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-strong)';
+              (e.currentTarget as HTMLElement).style.background = 'var(--bg-surface)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)';
+              (e.currentTarget as HTMLElement).style.background = 'var(--bg-elevated)';
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.11.82-.26.82-.577v-2.234c-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+            </svg>
+            CONTINUE WITH GITHUB
+          </button>
+
+          {/* Security note */}
+          <div
+            className="flex items-center justify-center gap-2 mt-6"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.5rem',
+              letterSpacing: '0.08em',
+              color: 'var(--text-tertiary)',
+            }}
+          >
+            <Shield size={11} style={{ color: 'var(--signal-text)', opacity: 0.6 }} />
+            ENCRYPTED JWT SESSIONS · HTTPONLY COOKIES
+          </div>
+        </motion.div>
+      </div>
     </div>
   );
 };
+
+/* Keyframe for loading spinner */
+const style = document.createElement('style');
+style.textContent = `@keyframes spin { to { transform: rotate(360deg); } }`;
+if (typeof document !== 'undefined' && !document.getElementById('auth-spin')) {
+  style.id = 'auth-spin';
+  document.head.appendChild(style);
+}

@@ -8,7 +8,7 @@ export interface LabDefinition {
   status: 'active' | 'coming-soon';
   icon: string; // Key of Lucide icons
   releaseDate?: string; // e.g., "Q3 2026"
-  component?: React.LazyExoticComponent<React.ComponentType<any>>;
+  component?: React.LazyExoticComponent<React.ComponentType<object>>;
 }
 
 export interface CategoryDefinition {

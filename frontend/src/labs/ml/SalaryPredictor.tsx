@@ -54,7 +54,7 @@ export default function SalaryPredictor() {
       const salary = Math.round(base * locMult);
 
       // Percentile logic
-      let percentile = 50;
+      let percentile: number;
       if (salary > 180000) percentile = 95;
       else if (salary > 140000) percentile = 88;
       else if (salary > 100000) percentile = 72;

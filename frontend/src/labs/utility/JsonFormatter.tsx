@@ -17,8 +17,8 @@ export default function JsonFormatter() {
       const formatted = JSON.stringify(parsed, null, spaces);
       setOutput(formatted);
       addXP(25, 'Formatted JSON payload 🛠️');
-    } catch (e: any) {
-      setError(e.message || 'Invalid JSON syntax detected.');
+    } catch (e: unknown) {
+      setError((e as Error).message || 'Invalid JSON syntax detected.');
     }
   };
 
@@ -29,8 +29,8 @@ export default function JsonFormatter() {
       const minified = JSON.stringify(parsed);
       setOutput(minified);
       addXP(25, 'Minified JSON payload 🛠️');
-    } catch (e: any) {
-      setError(e.message || 'Invalid JSON syntax detected.');
+    } catch (e: unknown) {
+      setError((e as Error).message || 'Invalid JSON syntax detected.');
     }
   };
 

@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String?       @unique
+  username     String        @unique
+  passwordHash String?
+  avatar       String
+  xp           Int           @default(0)
+  level        Int           @default(1)
+  streak       Int           @default(1)
+  lastActive   DateTime      @default(now())
+  isGuest      Boolean       @default(false)
+  githubId     String?       @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  achievements Achievement[]
+  history      LabHistory[]
+  bookmarks    Bookmark[]
+  sessions     Session[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  refreshToken String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Achievement {
+  id         String   @id @default(uuid())
+  userId     String
+  code       String   // e.g. "first-steps", "grindmaster", "elite-dev"
+  unlockedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, code])
+}
+
+model LabHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  labId     String
+  xpEarned  Int      @default(0)
+  timestamp DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Bookmark {
+  id        String   @id @default(uuid())
+  userId    String
+  labId     String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, labId])
+}
